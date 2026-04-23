@@ -1,0 +1,58 @@
+name: Deploy Flask App to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Deploy to EC2 via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        script: |
+
+          echo "🚀 Starting deployment..."
+
+          # Go to home directory
+          cd ~
+
+          # Clone repo if not exists
+          if [ ! -d "app-repo" ]; then
+            git clone https://github.com/gunnalaajay1234-maker/AWS-2-Tier-Student-Registration-System.git app-repo
+          fi
+
+          # Go inside repo
+          cd app-repo
+
+          # Pull latest code
+          git pull origin main
+
+          # Go into student-app folder
+          cd student-app
+
+          # Install dependencies
+          pip3 install -r requirements.txt
+
+          # Set environment variables
+          export DB_HOST=${{ secrets.DB_HOST }}
+          export DB_USER=${{ secrets.DB_USER }}
+          export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          export DB_NAME=${{ secrets.DB_NAME }}
+
+          # Kill old app if running
+          pkill gunicorn || true
+
+          # Run app using gunicorn
+          nohup gunicorn -w 2 -b 0.0.0.0:5000 app:app > app.log 2>&1 &
+
+          echo "✅ Deployment completed!"
